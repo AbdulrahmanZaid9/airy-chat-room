@@ -1,26 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ChatApp } from "@/components/ChatApp";
 
 export const Route = createFileRoute("/")({
   component: Index,
+  head: () => ({
+    meta: [
+      { title: "Lumi — AI Chat Assistant" },
+      {
+        name: "description",
+        content: "Chat with Lumi, a fast, friendly AI assistant. Ask anything.",
+      },
+      { property: "og:title", content: "Lumi — AI Chat Assistant" },
+      {
+        property: "og:description",
+        content: "Chat with Lumi, a fast, friendly AI assistant. Ask anything.",
+      },
+    ],
+  }),
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
-
 function Index() {
-  return <PlaceholderIndex />;
+  return <ChatApp />;
 }
