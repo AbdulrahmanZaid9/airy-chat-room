@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { sendChatMessage } from "@/utils/chat.functions";
 import { cn } from "@/lib/utils";
 
@@ -14,14 +15,23 @@ type Message = {
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
+const WELCOME: Message = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Hi, I'm here for you 🌱 I'm YouthBridge — a calm space to talk through what's on your mind. How are you feeling today?",
+};
+
 export function ChatApp() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendChat = useServerFn(sendChatMessage);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -29,7 +39,6 @@ export function ChatApp() {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -38,7 +47,9 @@ export function ChatApp() {
   }, [input]);
 
   const trimmed = input.trim();
-  const canSend = trimmed.length > 0 && !isLoading;
+  const canSend = trimmed.length > 0 && !isLoading && !isAnalyzing;
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+  const canAnalyze = userMessageCount >= 2 && !isLoading && !isAnalyzing;
 
   async function handleSend(e?: FormEvent) {
     e?.preventDefault();
@@ -54,6 +65,7 @@ export function ChatApp() {
       const result = await sendChat({
         data: {
           messages: history.map((m) => ({ role: m.role, content: m.content })),
+          mode: "chat",
         },
       });
 
@@ -63,7 +75,7 @@ export function ChatApp() {
           {
             id: uid(),
             role: "assistant",
-            content: result.error || "Sorry, I couldn't generate a response. Please try again.",
+            content: result.error || "Sorry, I couldn't respond. Please try again.",
             error: true,
           },
         ]);
@@ -80,12 +92,54 @@ export function ChatApp() {
         {
           id: uid(),
           role: "assistant",
-          content: "Something went wrong while reaching the assistant. Please try again.",
+          content: "Something went wrong while reaching me. Please try again.",
           error: true,
         },
       ]);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleAnalyze() {
+    if (!canAnalyze) return;
+    setIsAnalyzing(true);
+    try {
+      const result = await sendChat({
+        data: {
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          mode: "analyze",
+        },
+      });
+
+      if (result.error || !result.analysis) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "assistant",
+            content: result.error || "I couldn't generate your analysis. Please try again.",
+            error: true,
+          },
+        ]);
+        setIsAnalyzing(false);
+        return;
+      }
+
+      try {
+        localStorage.setItem("yb_analysis", JSON.stringify(result.analysis));
+        localStorage.setItem(
+          "yb_transcript",
+          JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content }))),
+        );
+      } catch {
+        // ignore storage errors
+      }
+
+      navigate({ to: "/results" });
+    } catch (err) {
+      console.error(err);
+      setIsAnalyzing(false);
     }
   }
 
@@ -96,41 +150,67 @@ export function ChatApp() {
     }
   }
 
-  const showEmpty = messages.length === 0 && !isLoading;
-
   return (
     <div className="flex h-[100dvh] flex-col">
-      {/* Top bar */}
-      <header className="flex shrink-0 items-center justify-center px-4 pt-6 pb-2">
+      <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-5 pb-2">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full gradient-user text-primary-foreground">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl gradient-calm text-primary-foreground bubble-shadow">
             <Sparkles className="h-4 w-4" />
           </div>
-          <h1 className="font-display text-2xl tracking-tight text-foreground">
-            Lumi<span className="text-primary"> · </span>
-            <span className="text-base font-sans text-muted-foreground">your AI companion</span>
-          </h1>
+          <div className="leading-tight">
+            <h1 className="font-display text-2xl tracking-tight text-foreground">
+              YouthBridge
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Your calm AI companion · Malaysia
+            </p>
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleAnalyze}
+          disabled={!canAnalyze}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-all",
+            canAnalyze
+              ? "gradient-calm text-primary-foreground hover:scale-[1.02] active:scale-95 bubble-shadow"
+              : "bg-muted text-muted-foreground cursor-not-allowed",
+          )}
+        >
+          {isAnalyzing ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Analyzing…
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Finish & Analyze
+            </>
+          )}
+        </button>
       </header>
 
-      {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="chat-scroll flex-1 overflow-y-auto px-4"
-      >
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-y-auto px-4">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-6">
-          {showEmpty && <EmptyState onPick={(t) => setInput(t)} />}
-
           <AnimatePresence initial={false}>
             {messages.map((m) => (
               <MessageBubble key={m.id} message={m} />
             ))}
-            {isLoading && <TypingBubble key="typing" />}
+            {(isLoading || isAnalyzing) && <TypingBubble key="typing" />}
           </AnimatePresence>
+
+          {userMessageCount < 2 && (
+            <p className="mx-auto mt-2 max-w-md text-center text-xs text-muted-foreground">
+              Share a bit about how you're feeling. After a short chat, tap{" "}
+              <span className="font-medium text-foreground">Finish & Analyze</span> for your
+              personalized dashboard.
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Composer */}
       <div className="shrink-0 px-4 pb-5 pt-2">
         <form
           onSubmit={handleSend}
@@ -142,7 +222,7 @@ export function ChatApp() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message Lumi…"
+            placeholder="Tell me how you're feeling…"
             aria-label="Message"
             className="max-h-[200px] flex-1 resize-none bg-transparent px-3 py-2.5 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
@@ -153,8 +233,8 @@ export function ChatApp() {
             className={cn(
               "group flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-all",
               canSend
-                ? "gradient-user text-primary-foreground hover:scale-105 active:scale-95"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
+                ? "gradient-calm text-primary-foreground hover:scale-105 active:scale-95"
+                : "bg-muted text-muted-foreground cursor-not-allowed",
             )}
           >
             <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -182,10 +262,10 @@ function MessageBubble({ message }: { message: Message }) {
         className={cn(
           "max-w-[85%] whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] leading-relaxed bubble-shadow",
           isUser
-            ? "gradient-user text-user-bubble-foreground rounded-br-md"
+            ? "gradient-calm text-user-bubble-foreground rounded-br-md"
             : message.error
               ? "bg-destructive/10 text-destructive border border-destructive/20 rounded-bl-md"
-              : "bg-bot-bubble text-bot-bubble-foreground rounded-bl-md border border-border/50"
+              : "bg-bot-bubble text-bot-bubble-foreground rounded-bl-md border border-border/50",
         )}
       >
         {message.content}
@@ -207,46 +287,6 @@ function TypingBubble() {
         <span className="typing-dot" />
         <span className="typing-dot" />
         <span className="typing-dot" />
-      </div>
-    </motion.div>
-  );
-}
-
-const SUGGESTIONS = [
-  "Explain quantum computing simply",
-  "Write a haiku about the ocean",
-  "Plan a 3-day trip to Kyoto",
-  "Help me debug a tricky React bug",
-];
-
-function EmptyState({ onPick }: { onPick: (t: string) => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center pt-8 pb-4 text-center"
-    >
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl gradient-user text-primary-foreground bubble-shadow">
-        <Sparkles className="h-6 w-6" />
-      </div>
-      <h2 className="font-display text-3xl tracking-tight text-foreground sm:text-4xl">
-        How can I help today?
-      </h2>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">
-        Ask anything — from coding help to creative writing. I'm here to chat.
-      </p>
-      <div className="mt-6 grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onPick(s)}
-            className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3 text-left text-sm text-foreground transition-all hover:border-primary/40 hover:bg-card hover:-translate-y-0.5 bubble-shadow"
-          >
-            {s}
-          </button>
-        ))}
       </div>
     </motion.div>
   );
