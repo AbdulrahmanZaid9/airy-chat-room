@@ -13,6 +13,13 @@ type Message = {
   error?: boolean;
 };
 
+type UserContext = {
+  mood: string;
+  energy: string;
+  time: string;
+  sessionCount: number;
+};
+
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 const WELCOME: Message = {
@@ -22,16 +29,48 @@ const WELCOME: Message = {
     "Hi, I'm here for you 🌱 I'm YouthBridge — a calm space to talk through what's on your mind. How are you feeling today?",
 };
 
+const MIN_MESSAGES = 4;
+
 export function ChatApp() {
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [context, setContext] = useState<UserContext | undefined>(undefined);
+  const [previousFeedback, setPreviousFeedback] = useState<string | undefined>(undefined);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendChat = useServerFn(sendChatMessage);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const ctxRaw = localStorage.getItem("yb_context");
+      if (ctxRaw) {
+        const parsed = JSON.parse(ctxRaw);
+        if (
+          parsed &&
+          typeof parsed.mood === "string" &&
+          typeof parsed.energy === "string" &&
+          typeof parsed.time === "string"
+        ) {
+          setContext({
+            mood: parsed.mood,
+            energy: parsed.energy,
+            time: parsed.time,
+            sessionCount: Number(parsed.sessionCount) || 1,
+          });
+        }
+      }
+      const fb = localStorage.getItem("yb_feedback");
+      if (fb === "helpful" || fb === "not_helpful") {
+        setPreviousFeedback(fb);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -49,7 +88,8 @@ export function ChatApp() {
   const trimmed = input.trim();
   const canSend = trimmed.length > 0 && !isLoading && !isAnalyzing;
   const userMessageCount = messages.filter((m) => m.role === "user").length;
-  const canAnalyze = userMessageCount >= 1 && !isLoading && !isAnalyzing;
+  const canAnalyze = userMessageCount >= MIN_MESSAGES && !isLoading && !isAnalyzing;
+  const remaining = Math.max(0, MIN_MESSAGES - userMessageCount);
 
   async function handleSend(e?: FormEvent) {
     e?.preventDefault();
@@ -66,6 +106,8 @@ export function ChatApp() {
         data: {
           messages: history.map((m) => ({ role: m.role, content: m.content })),
           mode: "chat",
+          context,
+          previousFeedback,
         },
       });
 
@@ -109,6 +151,8 @@ export function ChatApp() {
         data: {
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
           mode: "analyze",
+          context,
+          previousFeedback,
         },
       });
 
@@ -132,6 +176,20 @@ export function ChatApp() {
           "yb_transcript",
           JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content }))),
         );
+
+        // Save session to history (last 5)
+        try {
+          const raw = localStorage.getItem("yb_sessions");
+          const prev = raw ? JSON.parse(raw) : [];
+          const arr = Array.isArray(prev) ? prev : [];
+          const next = [
+            { date: new Date().toISOString(), analysis: result.analysis },
+            ...arr,
+          ].slice(0, 5);
+          localStorage.setItem("yb_sessions", JSON.stringify(next));
+        } catch {
+          // ignore history write errors
+        }
       } catch {
         // ignore storage errors
       }
@@ -201,11 +259,11 @@ export function ChatApp() {
             {(isLoading || isAnalyzing) && <TypingBubble key="typing" />}
           </AnimatePresence>
 
-          {userMessageCount < 1 && (
+          {!isAnalyzing && (
             <p className="mx-auto mt-2 max-w-md text-center text-xs text-muted-foreground">
-              Share a bit about how you're feeling. Then tap{" "}
-              <span className="font-medium text-foreground">Finish & Analyze</span> for your
-              personalized dashboard.
+              {remaining > 0
+                ? `Share a little more — ${remaining} exchange${remaining === 1 ? "" : "s"} before your analysis unlocks`
+                : "Ready to analyze whenever you are ✓"}
             </p>
           )}
         </div>
