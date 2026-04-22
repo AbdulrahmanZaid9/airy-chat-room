@@ -215,12 +215,12 @@ function ResultsPage() {
   const showSecondary =
     !!secondaryState && secondaryState !== "normal" && secondaryState !== stateKey;
 
-  const defaultRecTab = useMemo(() => {
-    if (stateKey === "lonely") return "social";
-    if (stateKey === "stressed" || stateKey === "overwhelmed") return "wellbeing";
-    if (stateKey === "unmotivated") return "learning";
-    return "wellbeing";
-  }, [stateKey]);
+  const defaultRecTab =
+    stateKey === "lonely"
+      ? "social"
+      : stateKey === "unmotivated"
+        ? "learning"
+        : "wellbeing";
 
   const recs = analysis.recommendations || {};
   const indicators = analysis.indicators ?? [];
