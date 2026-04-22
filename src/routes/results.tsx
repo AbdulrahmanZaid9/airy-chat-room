@@ -135,6 +135,8 @@ function ResultsPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState<"helpful" | "not_helpful" | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -143,11 +145,37 @@ function ResultsPage() {
       if (raw) setAnalysis(JSON.parse(raw));
       const fb = localStorage.getItem("yb_feedback");
       if (fb === "helpful" || fb === "not_helpful") setFeedback(fb);
+      const ladder = localStorage.getItem("yb_ladder_progress");
+      if (ladder) {
+        const parsed = JSON.parse(ladder);
+        if (Array.isArray(parsed)) {
+          setCompletedSteps(parsed.filter((n) => typeof n === "number"));
+        }
+      }
+      const sess = localStorage.getItem("yb_sessions");
+      if (sess) {
+        const parsed = JSON.parse(sess);
+        if (Array.isArray(parsed)) setSessions(parsed);
+      }
     } catch {
       // ignore
     }
     setLoaded(true);
   }, []);
+
+  function toggleStep(step: number) {
+    setCompletedSteps((prev) => {
+      const next = prev.includes(step)
+        ? prev.filter((s) => s !== step)
+        : [...prev, step];
+      try {
+        localStorage.setItem("yb_ladder_progress", JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   function handleFeedback(value: "helpful" | "not_helpful") {
     setFeedback(value);
