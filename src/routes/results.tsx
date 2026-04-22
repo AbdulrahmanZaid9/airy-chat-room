@@ -8,7 +8,10 @@ import {
   GraduationCap,
   HeartPulse,
   Leaf,
+  MapPin,
   RotateCcw,
+  Sparkles,
+  Target,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,12 +30,25 @@ export const Route = createFileRoute("/results")({
   }),
 });
 
-type Recommendation = { title: string; description: string };
+type Recommendation = { title: string; description: string; location?: string };
+
+type LevelKey = "low" | "medium" | "high";
+
+type Metric = { level: LevelKey | string; score: number };
 
 type Analysis = {
   state: "stressed" | "lonely" | "unmotivated" | "normal" | string;
-  severity: "low" | "medium" | "high" | string;
+  severity: LevelKey | string;
   summary?: string;
+  confidence?: number;
+  indicators?: string[];
+  causes?: string[];
+  location?: string;
+  metrics?: {
+    stress?: Metric;
+    social?: Metric;
+    motivation?: Metric;
+  };
   recommendations: {
     wellbeing?: Recommendation[];
     social?: Recommendation[];
@@ -112,6 +128,15 @@ function ResultsPage() {
   const sev = SEVERITY_META[sevKey] ?? SEVERITY_META.low;
 
   const recs = analysis.recommendations || {};
+  const indicators = analysis.indicators ?? [];
+  const causes = analysis.causes ?? [];
+  const confidence = clampPct(analysis.confidence);
+  const location = (analysis.location || "Malaysia").trim();
+
+  const metrics = analysis.metrics ?? {};
+  const stressScore = clampPct(metrics.stress?.score);
+  const socialScore = clampPct(metrics.social?.score);
+  const motivationScore = clampPct(metrics.motivation?.score);
 
   function handleRestart() {
     try {
@@ -190,6 +215,16 @@ function ResultsPage() {
                 <p className="mt-2 max-w-md text-sm text-muted-foreground">
                   {analysis.summary || stateCopy.tone}
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                    <MapPin className="h-3 w-3" /> {location}
+                  </span>
+                  {confidence !== null && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                      <Target className="h-3 w-3" /> {confidence}% confidence
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -223,12 +258,87 @@ function ResultsPage() {
           </div>
         </motion.section>
 
+        {/* Wellbeing metrics */}
+        {(stressScore !== null || socialScore !== null || motivationScore !== null) && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            <MetricBar
+              label="Stress level"
+              score={stressScore}
+              level={metrics.stress?.level}
+              invert
+            />
+            <MetricBar
+              label="Social connection"
+              score={socialScore}
+              level={metrics.social?.level}
+            />
+            <MetricBar
+              label="Motivation"
+              score={motivationScore}
+              level={metrics.motivation?.level}
+            />
+          </motion.section>
+        )}
+
+        {/* Insight summary: indicators + causes */}
+        {(indicators.length > 0 || causes.length > 0) && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2"
+          >
+            {indicators.length > 0 && (
+              <div className="rounded-3xl border border-border/60 bg-card p-5 card-shadow">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-lg text-foreground">Key indicators</h3>
+                </div>
+                <ul className="mt-3 space-y-2">
+                  {indicators.map((ind, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-foreground/85"
+                    >
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      <span>{ind}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {causes.length > 0 && (
+              <div className="rounded-3xl border border-border/60 bg-card p-5 card-shadow">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-lg text-foreground">Possible causes</h3>
+                </div>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {causes.map((c, i) => (
+                    <li
+                      key={i}
+                      className="rounded-full border border-border/50 bg-background/70 px-3 py-1 text-xs text-foreground/85"
+                    >
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </motion.section>
+        )}
+
         {/* Recommendations */}
         <h2 className="mt-10 font-display text-2xl tracking-tight text-foreground">
           Smart recommendations for you
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tailored next steps — designed for life in Malaysia 🇲🇾
+          Tailored next steps — designed for life in {location} 🇲🇾
         </p>
 
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -278,6 +388,57 @@ function ResultsPage() {
           </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function clampPct(value: unknown): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function MetricBar({
+  label,
+  score,
+  level,
+  invert = false,
+}: {
+  label: string;
+  score: number | null;
+  level?: string;
+  invert?: boolean;
+}) {
+  if (score === null) return null;
+
+  // For stress (invert=true), high score = bad. For social/motivation, high score = good.
+  const isHealthy = invert ? score < 40 : score >= 70;
+  const isWarning = invert ? score >= 40 && score < 70 : score >= 40 && score < 70;
+
+  const barColor = isHealthy ? "bg-success" : isWarning ? "bg-warning" : "bg-destructive";
+  const textColor = isHealthy ? "text-success" : isWarning ? "text-warning" : "text-destructive";
+  const displayLevel =
+    (level as string | undefined) ??
+    (score >= 70 ? "high" : score >= 40 ? "medium" : "low");
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-4 card-shadow">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <span className={cn("text-[11px] font-semibold capitalize", textColor)}>
+          {displayLevel}
+        </span>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${score}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className={cn("h-full rounded-full", barColor)}
+        />
+      </div>
+      <p className="mt-1.5 text-right text-[11px] text-muted-foreground">{score}/100</p>
     </div>
   );
 }
@@ -341,6 +502,11 @@ function RecCard({
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {r.description}
               </p>
+              {r.location && (
+                <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <MapPin className="h-2.5 w-2.5" /> {r.location}
+                </p>
+              )}
             </li>
           ))
         ) : (

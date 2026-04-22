@@ -14,28 +14,56 @@ Guidelines:
 - Never diagnose. Encourage professional support when needed.
 - After ~4-6 exchanges, you may suggest the user tap "Finish & Analyze" to see their personalized dashboard.`;
 
-const ANALYSIS_PROMPT = `You are an expert wellbeing analyst for Malaysian youth. Based on the conversation, produce a STRICT JSON analysis.
+const ANALYSIS_PROMPT = `You are an AI Mental Wellbeing Analyst for Malaysian youth. You DO NOT diagnose medical conditions. You produce structured, dashboard-ready insights using soft, supportive language ("indicators of stress", "possible signs of social withdrawal", "may be experiencing burnout patterns").
+
+Analyze the conversation across:
+- Emotional signals (stress, loneliness, motivation, anxiety, burnout)
+- Behavioral patterns (isolation, avoidance, overworking, sleep issues)
+- Contextual causes (study pressure, work, social environment, family)
+- Severity (low / medium / high concern indicators)
+
 Return ONLY valid JSON (no markdown, no commentary). Schema:
 
 {
   "state": "stressed" | "lonely" | "unmotivated" | "normal",
   "severity": "low" | "medium" | "high",
   "summary": "1-2 sentence empathetic summary of what you noticed",
+  "confidence": number,                      // 0-100, your confidence in the assessment
+  "indicators": [string],                    // 3-5 short observed signals, e.g. "mentions trouble sleeping"
+  "causes": [string],                        // 2-4 likely contextual causes, e.g. "exam pressure"
+  "location": string,                        // detected location (e.g. "Kuala Lumpur"); use "Malaysia" if unknown
+  "metrics": {
+    "stress":     { "level": "low"|"medium"|"high", "score": number },  // score 0-100
+    "social":     { "level": "low"|"medium"|"high", "score": number },  // higher = more connected
+    "motivation": { "level": "low"|"medium"|"high", "score": number }   // higher = more motivated
+  },
   "recommendations": {
-    "wellbeing": [{"title": string, "description": string}],
-    "social": [{"title": string, "description": string}],
-    "learning": [{"title": string, "description": string}],
-    "health": [{"title": string, "description": string}]
+    "wellbeing": [{"title": string, "description": string, "location"?: string}],
+    "social":    [{"title": string, "description": string, "location"?: string}],
+    "learning":  [{"title": string, "description": string, "location"?: string}],
+    "health":    [{"title": string, "description": string, "location"?: string}]
   }
 }
 
 Rules:
 - Pick the SINGLE most prominent state. If nothing concerning, use "normal".
-- Severity = "high" only if there are clear distress signals (hopelessness, isolation, panic, burnout).
-- Provide 2-3 items per category. ALL recommendations MUST be realistic for Malaysia (Kuala Lumpur, Penang, Johor Bahru, etc.).
-- Use real-style suggestions: e.g., "Visit your university counseling unit (most Malaysian unis offer free sessions)", "Join a Meetup KL student event", "Try Befrienders KL (03-7627 2929) for a free listening ear", "Take a free Coursera course via Yayasan Peneraju", "Walk in Taman Tugu or KLCC Park for 20 min", "Volunteer with MyKasih or Kechara Soup Kitchen".
-- Tailor by state: lonely→emphasize social; unmotivated→emphasize learning; stressed/anxious→emphasize health & wellbeing.
-- Tone in descriptions: warm, actionable, 1 sentence each.`;
+- Severity = "high" only with clear distress signals (hopelessness, deep isolation, panic, burnout).
+- Use SOFT language in summary/indicators ("possible signs of…", "may be experiencing…"). Never diagnose.
+- Provide 2-3 items per recommendation category. Tailor by state:
+  - lonely → emphasize social
+  - unmotivated → emphasize learning
+  - stressed/anxious → emphasize wellbeing & health
+- Personalize recommendations to the user's location in Malaysia. Use REAL, realistic Malaysian places/services. Examples:
+  - "Walk in Taman Tugu, KLCC Park, or Bukit Gasing for 20 min"
+  - "Join a Meetup KL student event or MyDigital Workforce community"
+  - "Visit your university counseling unit (free sessions at most Malaysian unis)"
+  - "Befrienders KL: 03-7627 2929 (24/7, free, confidential)" — only when severity is medium/high
+  - "Try a free course on Coursera via Yayasan Peneraju or FutureSkills MY"
+  - "Volunteer with MyKasih, Kechara Soup Kitchen, or PERTIWI Soup Kitchen"
+  - "Try the Pomodoro technique (25 min focus / 5 min break) for study pressure"
+- Each recommendation: 1 short title + 1 sentence warm, actionable description. Add "location" field when it's a place-specific suggestion.
+- Confidence and metric scores must be integers 0-100. Levels must match scores (low: 0-39, medium: 40-69, high: 70-100 — note: for "social" and "motivation", "high" means GOOD/healthy).
+- Be supportive, non-judgmental, never alarming.`;
 
 export const sendChatMessage = createServerFn({ method: "POST" })
   .inputValidator((data: { messages: ChatMessage[]; mode?: "chat" | "analyze" }) => {
