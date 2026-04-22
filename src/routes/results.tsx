@@ -4,14 +4,21 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowLeft,
+  Battery,
   Brain,
+  Check,
+  Clock,
+  Footprints,
   GraduationCap,
   HeartPulse,
+  Layers,
   Leaf,
   MapPin,
   RotateCcw,
   Sparkles,
   Target,
+  ThumbsDown,
+  ThumbsUp,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,11 +37,24 @@ export const Route = createFileRoute("/results")({
   }),
 });
 
-type Recommendation = { title: string; description: string; location?: string };
-
 type LevelKey = "low" | "medium" | "high";
 
+type Recommendation = {
+  title: string;
+  description: string;
+  location?: string;
+  when?: string;
+  energy?: LevelKey | string;
+};
+
 type Metric = { level: LevelKey | string; score: number };
+
+type ExposureStep = {
+  step: number;
+  title: string;
+  description: string;
+  location?: string;
+};
 
 type Analysis = {
   state: "stressed" | "lonely" | "unmotivated" | "normal" | string;
@@ -43,11 +63,15 @@ type Analysis = {
   confidence?: number;
   indicators?: string[];
   causes?: string[];
+  behavioral_insights?: string[];
   location?: string;
+  time_context?: string;
   metrics?: {
     stress?: Metric;
     social?: Metric;
     motivation?: Metric;
+    energy?: Metric;
+    cognitive_load?: Metric;
   };
   recommendations: {
     wellbeing?: Recommendation[];
@@ -55,6 +79,8 @@ type Analysis = {
     learning?: Recommendation[];
     health?: Recommendation[];
   };
+  progressive_exposure?: ExposureStep[];
+  feedback_prompt?: string;
 };
 
 const STATE_COPY: Record<string, { label: string; emoji: string; tone: string }> = {
@@ -89,17 +115,29 @@ const SEVERITY_META: Record<string, { label: string; pct: number; color: string;
 function ResultsPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [feedback, setFeedback] = useState<"helpful" | "not_helpful" | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("yb_analysis");
       if (raw) setAnalysis(JSON.parse(raw));
+      const fb = localStorage.getItem("yb_feedback");
+      if (fb === "helpful" || fb === "not_helpful") setFeedback(fb);
     } catch {
       // ignore
     }
     setLoaded(true);
   }, []);
+
+  function handleFeedback(value: "helpful" | "not_helpful") {
+    setFeedback(value);
+    try {
+      localStorage.setItem("yb_feedback", value);
+    } catch {
+      // ignore
+    }
+  }
 
   if (loaded && !analysis) {
     return (
@@ -130,18 +168,24 @@ function ResultsPage() {
   const recs = analysis.recommendations || {};
   const indicators = analysis.indicators ?? [];
   const causes = analysis.causes ?? [];
+  const insights = analysis.behavioral_insights ?? [];
+  const exposure = (analysis.progressive_exposure ?? []).slice(0, 4);
   const confidence = clampPct(analysis.confidence);
   const location = (analysis.location || "Malaysia").trim();
+  const timeContext = (analysis.time_context || "").trim();
 
   const metrics = analysis.metrics ?? {};
   const stressScore = clampPct(metrics.stress?.score);
   const socialScore = clampPct(metrics.social?.score);
   const motivationScore = clampPct(metrics.motivation?.score);
+  const energyScore = clampPct(metrics.energy?.score);
+  const cognitiveScore = clampPct(metrics.cognitive_load?.score);
 
   function handleRestart() {
     try {
       localStorage.removeItem("yb_analysis");
       localStorage.removeItem("yb_transcript");
+      localStorage.removeItem("yb_feedback");
     } catch {
       // ignore
     }
@@ -219,6 +263,11 @@ function ResultsPage() {
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
                     <MapPin className="h-3 w-3" /> {location}
                   </span>
+                  {timeContext && timeContext !== "unknown" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 capitalize text-muted-foreground">
+                      <Clock className="h-3 w-3" /> {timeContext}
+                    </span>
+                  )}
                   {confidence !== null && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
                       <Target className="h-3 w-3" /> {confidence}% confidence
@@ -258,30 +307,50 @@ function ResultsPage() {
           </div>
         </motion.section>
 
-        {/* Wellbeing metrics */}
-        {(stressScore !== null || socialScore !== null || motivationScore !== null) && (
+        {/* Wellbeing scores */}
+        {(stressScore !== null ||
+          socialScore !== null ||
+          motivationScore !== null ||
+          energyScore !== null ||
+          cognitiveScore !== null) && (
           <motion.section
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3"
+            className="mt-5"
           >
-            <MetricBar
-              label="Stress level"
-              score={stressScore}
-              level={metrics.stress?.level}
-              invert
-            />
-            <MetricBar
-              label="Social connection"
-              score={socialScore}
-              level={metrics.social?.level}
-            />
-            <MetricBar
-              label="Motivation"
-              score={motivationScore}
-              level={metrics.motivation?.level}
-            />
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Wellbeing scores
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <MetricBar
+                label="Stress"
+                score={stressScore}
+                level={metrics.stress?.level}
+                invert
+              />
+              <MetricBar
+                label="Social"
+                score={socialScore}
+                level={metrics.social?.level}
+              />
+              <MetricBar
+                label="Motivation"
+                score={motivationScore}
+                level={metrics.motivation?.level}
+              />
+              <MetricBar
+                label="Energy"
+                score={energyScore}
+                level={metrics.energy?.level}
+              />
+              <MetricBar
+                label="Cognitive load"
+                score={cognitiveScore}
+                level={metrics.cognitive_load?.level}
+                invert
+              />
+            </div>
           </motion.section>
         )}
 
@@ -333,12 +402,40 @@ function ResultsPage() {
           </motion.section>
         )}
 
+        {/* Behavioral insights */}
+        {insights.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            className="mt-5 rounded-3xl border border-border/60 bg-card p-5 card-shadow"
+          >
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-lg text-foreground">
+                Behavioral patterns
+              </h3>
+            </div>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {insights.map((p, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2 rounded-2xl border border-border/40 bg-background/60 p-3 text-sm text-foreground/85"
+                >
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span>{p}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        )}
+
         {/* Recommendations */}
         <h2 className="mt-10 font-display text-2xl tracking-tight text-foreground">
           Smart recommendations for you
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tailored next steps — designed for life in {location} 🇲🇾
+          Tailored to your energy, time of day & life in {location} 🇲🇾
         </p>
 
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -380,6 +477,92 @@ function ResultsPage() {
           />
         </div>
 
+        {/* Progressive exposure */}
+        {exposure.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-10 rounded-3xl border border-border/60 bg-card p-6 card-shadow"
+          >
+            <div className="flex items-center gap-2">
+              <Footprints className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-2xl text-foreground">
+                Step-by-step social ladder
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Tiny, low-pressure steps. Start with whichever feels safe today.
+            </p>
+            <ol className="mt-5 space-y-3">
+              {exposure.map((step, i) => (
+                <li
+                  key={i}
+                  className="relative flex gap-4 rounded-2xl border border-border/40 bg-background/60 p-4"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-calm text-sm font-semibold text-primary-foreground">
+                    {step.step ?? i + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{step.title}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      {step.description}
+                    </p>
+                    {step.location && (
+                      <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <MapPin className="h-2.5 w-2.5" /> {step.location}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </motion.section>
+        )}
+
+        {/* Feedback loop */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="mt-6 rounded-3xl border border-border/60 bg-card p-6 card-shadow"
+        >
+          <div className="flex items-center gap-2">
+            <Battery className="h-4 w-4 text-primary" />
+            <h3 className="font-display text-lg text-foreground">Quick check-in</h3>
+          </div>
+          <p className="mt-2 text-sm text-foreground/85">
+            {analysis.feedback_prompt ||
+              "Try one suggestion that feels manageable today — did it help you feel a little better?"}
+          </p>
+
+          {feedback ? (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+              <Check className="h-4 w-4 text-success" />
+              {feedback === "helpful"
+                ? "Glad it helped — we'll keep tuning suggestions to what works for you."
+                : "Thanks for the honesty — try another step from the ladder, or chat again to refine."}
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleFeedback("helpful")}
+                className="inline-flex items-center gap-1.5 rounded-full gradient-calm px-4 py-2 text-xs font-medium text-primary-foreground bubble-shadow transition active:scale-95"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" /> It helped
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFeedback("not_helpful")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-4 py-2 text-xs font-medium text-foreground/80 transition hover:text-foreground active:scale-95"
+              >
+                <ThumbsDown className="h-3.5 w-3.5" /> Not really
+              </button>
+            </div>
+          )}
+        </motion.section>
+
         <div className="mt-10 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Brain className="h-3.5 w-3.5" />
           <span>
@@ -410,9 +593,9 @@ function MetricBar({
 }) {
   if (score === null) return null;
 
-  // For stress (invert=true), high score = bad. For social/motivation, high score = good.
+  // For invert metrics (stress, cognitive load): high score = bad. Otherwise high score = good.
   const isHealthy = invert ? score < 40 : score >= 70;
-  const isWarning = invert ? score >= 40 && score < 70 : score >= 40 && score < 70;
+  const isWarning = score >= 40 && score < 70;
 
   const barColor = isHealthy ? "bg-success" : isWarning ? "bg-warning" : "bg-destructive";
   const textColor = isHealthy ? "text-success" : isWarning ? "text-warning" : "text-destructive";
@@ -421,16 +604,16 @@ function MetricBar({
     (score >= 70 ? "high" : score >= 40 ? "medium" : "low");
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 card-shadow">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-2xl border border-border/60 bg-card p-3 card-shadow">
+      <div className="flex items-center justify-between gap-1">
+        <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
-        <span className={cn("text-[11px] font-semibold capitalize", textColor)}>
+        <span className={cn("text-[10px] font-semibold capitalize", textColor)}>
           {displayLevel}
         </span>
       </div>
-      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${score}%` }}
@@ -438,7 +621,7 @@ function MetricBar({
           className={cn("h-full rounded-full", barColor)}
         />
       </div>
-      <p className="mt-1.5 text-right text-[11px] text-muted-foreground">{score}/100</p>
+      <p className="mt-1 text-right text-[10px] text-muted-foreground">{score}/100</p>
     </div>
   );
 }
@@ -502,11 +685,23 @@ function RecCard({
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {r.description}
               </p>
-              {r.location && (
-                <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  <MapPin className="h-2.5 w-2.5" /> {r.location}
-                </p>
-              )}
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {r.location && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <MapPin className="h-2.5 w-2.5" /> {r.location}
+                  </span>
+                )}
+                {r.when && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <Clock className="h-2.5 w-2.5" /> {r.when}
+                  </span>
+                )}
+                {r.energy && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground">
+                    <Battery className="h-2.5 w-2.5" /> {r.energy} energy
+                  </span>
+                )}
+              </div>
             </li>
           ))
         ) : (
