@@ -58,8 +58,11 @@ type ExposureStep = {
 
 type Analysis = {
   state: "stressed" | "lonely" | "unmotivated" | "normal" | string;
+  primary_state?: string;
+  secondary_state?: string | null;
   severity: LevelKey | string;
   summary?: string;
+  reasoning?: string;
   confidence?: number;
   indicators?: string[];
   causes?: string[];
