@@ -5,15 +5,17 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Lumi — AI Chat Assistant" },
+      { title: "YouthBridge Connect — AI Wellbeing Companion" },
       {
         name: "description",
-        content: "Chat with Lumi, a fast, friendly AI assistant. Ask anything.",
+        content:
+          "Chat with YouthBridge, an empathetic AI companion for Malaysian youth. Get a personalized wellbeing analysis and actionable next steps.",
       },
-      { property: "og:title", content: "Lumi — AI Chat Assistant" },
+      { property: "og:title", content: "YouthBridge Connect — AI Wellbeing Companion" },
       {
         property: "og:description",
-        content: "Chat with Lumi, a fast, friendly AI assistant. Ask anything.",
+        content:
+          "Talk to an AI that listens, analyzes how you feel, and recommends real next steps in Malaysia.",
       },
     ],
   }),
