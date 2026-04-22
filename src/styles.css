@@ -40,53 +40,58 @@
 :root {
   --radius: 1rem;
 
-  /* Soft warm gradient background */
-  --background: oklch(0.985 0.008 95);
-  --foreground: oklch(0.18 0.02 270);
+  /* Calm wellbeing background — soft mint/sky */
+  --background: oklch(0.985 0.012 200);
+  --foreground: oklch(0.22 0.04 220);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 270);
+  --card-foreground: oklch(0.22 0.04 220);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 270);
+  --popover-foreground: oklch(0.22 0.04 220);
 
-  /* Primary: deep indigo */
-  --primary: oklch(0.42 0.18 268);
-  --primary-foreground: oklch(0.98 0.005 95);
-  --primary-glow: oklch(0.62 0.21 285);
+  /* Primary: serene teal-blue */
+  --primary: oklch(0.55 0.13 200);
+  --primary-foreground: oklch(0.99 0.005 200);
+  --primary-glow: oklch(0.72 0.14 180);
 
-  --secondary: oklch(0.96 0.01 95);
-  --secondary-foreground: oklch(0.18 0.02 270);
+  --secondary: oklch(0.96 0.02 180);
+  --secondary-foreground: oklch(0.22 0.04 220);
 
-  --muted: oklch(0.95 0.012 95);
-  --muted-foreground: oklch(0.5 0.02 270);
+  --muted: oklch(0.95 0.015 200);
+  --muted-foreground: oklch(0.5 0.03 220);
 
-  --accent: oklch(0.94 0.04 70);
-  --accent-foreground: oklch(0.18 0.02 270);
+  --accent: oklch(0.92 0.06 160);
+  --accent-foreground: oklch(0.22 0.04 220);
 
-  --destructive: oklch(0.6 0.22 25);
-  --destructive-foreground: oklch(0.98 0.005 95);
+  --destructive: oklch(0.62 0.2 30);
+  --destructive-foreground: oklch(0.99 0.005 95);
 
-  --border: oklch(0.9 0.012 95);
-  --input: oklch(0.92 0.012 95);
-  --ring: oklch(0.55 0.18 280);
+  --success: oklch(0.65 0.14 160);
+  --warning: oklch(0.78 0.15 75);
+
+  --border: oklch(0.9 0.018 200);
+  --input: oklch(0.93 0.015 200);
+  --ring: oklch(0.6 0.13 195);
 
   /* Chat bubbles */
   --bot-bubble: oklch(1 0 0);
-  --bot-bubble-foreground: oklch(0.2 0.02 270);
-  --user-bubble-foreground: oklch(0.99 0.005 95);
+  --bot-bubble-foreground: oklch(0.22 0.04 220);
+  --user-bubble-foreground: oklch(0.99 0.005 200);
 
   /* Effects */
   --gradient-bg: radial-gradient(
-      ellipse 80% 60% at 20% 0%,
-      oklch(0.92 0.06 290 / 0.7),
+      ellipse 80% 60% at 15% 0%,
+      oklch(0.92 0.07 195 / 0.7),
       transparent 60%
     ),
-    radial-gradient(ellipse 70% 50% at 100% 100%, oklch(0.93 0.07 50 / 0.6), transparent 60%),
-    linear-gradient(180deg, oklch(0.985 0.008 95), oklch(0.97 0.012 80));
-  --gradient-user: linear-gradient(135deg, oklch(0.42 0.18 268), oklch(0.55 0.22 295));
-  --shadow-bubble: 0 1px 2px oklch(0.2 0.02 270 / 0.06), 0 8px 24px -12px oklch(0.2 0.02 270 / 0.12);
-  --shadow-input: 0 2px 4px oklch(0.2 0.02 270 / 0.05), 0 12px 32px -8px oklch(0.42 0.18 268 / 0.18);
-  --shadow-glow: 0 0 0 4px oklch(0.55 0.18 280 / 0.12);
+    radial-gradient(ellipse 70% 55% at 100% 100%, oklch(0.92 0.08 160 / 0.6), transparent 60%),
+    linear-gradient(180deg, oklch(0.985 0.012 200), oklch(0.97 0.018 180));
+  --gradient-user: linear-gradient(135deg, oklch(0.55 0.13 200), oklch(0.68 0.14 175));
+  --gradient-calm: linear-gradient(135deg, oklch(0.65 0.13 195), oklch(0.72 0.14 160));
+  --shadow-bubble: 0 1px 2px oklch(0.2 0.04 220 / 0.06), 0 8px 24px -12px oklch(0.2 0.04 220 / 0.12);
+  --shadow-input: 0 2px 4px oklch(0.2 0.04 220 / 0.05), 0 12px 32px -8px oklch(0.55 0.13 200 / 0.18);
+  --shadow-glow: 0 0 0 4px oklch(0.6 0.13 195 / 0.12);
+  --shadow-card: 0 4px 12px -4px oklch(0.2 0.04 220 / 0.08), 0 16px 40px -16px oklch(0.55 0.13 200 / 0.15);
 }
 
 @layer base {
@@ -119,8 +124,33 @@
   .gradient-user {
     background: var(--gradient-user);
   }
+  .gradient-calm {
+    background: var(--gradient-calm);
+  }
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
   .font-display {
     font-family: var(--font-display);
+  }
+  .text-success {
+    color: var(--success);
+  }
+  .bg-success {
+    background-color: var(--success);
+  }
+  .text-warning {
+    color: var(--warning);
+  }
+  .bg-warning {
+    background-color: var(--warning);
+  }
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   /* Typing dots */
