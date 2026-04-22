@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   Footprints,
   GraduationCap,
   HeartPulse,
+  History,
   Layers,
   Leaf,
   MapPin,
@@ -21,7 +22,22 @@ import {
   ThumbsUp,
   Users,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+
+type SessionRecord = {
+  date: string;
+  analysis: { primary_state?: string; state?: string; severity?: string };
+};
+
+const STATE_EMOJI: Record<string, string> = {
+  stressed: "😣",
+  lonely: "🫂",
+  unmotivated: "🌱",
+  overwhelmed: "🌊",
+  normal: "✨",
+};
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
