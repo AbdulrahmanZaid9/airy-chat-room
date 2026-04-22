@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ChatApp } from "@/components/ChatApp";
 
 export const Route = createFileRoute("/")({
@@ -22,5 +23,23 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const navigate = useNavigate();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const ctx = localStorage.getItem("yb_context");
+      if (!ctx) {
+        navigate({ to: "/onboarding" });
+        return;
+      }
+    } catch {
+      navigate({ to: "/onboarding" });
+      return;
+    }
+    setReady(true);
+  }, [navigate]);
+
+  if (!ready) return null;
   return <ChatApp />;
 }

@@ -11,6 +11,7 @@ import {
   Footprints,
   GraduationCap,
   HeartPulse,
+  History,
   Layers,
   Leaf,
   MapPin,
@@ -21,7 +22,22 @@ import {
   ThumbsUp,
   Users,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+
+type SessionRecord = {
+  date: string;
+  analysis: { primary_state?: string; state?: string; severity?: string };
+};
+
+const STATE_EMOJI: Record<string, string> = {
+  stressed: "😣",
+  lonely: "🫂",
+  unmotivated: "🌱",
+  overwhelmed: "🌊",
+  normal: "✨",
+};
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -119,6 +135,8 @@ function ResultsPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState<"helpful" | "not_helpful" | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -127,11 +145,37 @@ function ResultsPage() {
       if (raw) setAnalysis(JSON.parse(raw));
       const fb = localStorage.getItem("yb_feedback");
       if (fb === "helpful" || fb === "not_helpful") setFeedback(fb);
+      const ladder = localStorage.getItem("yb_ladder_progress");
+      if (ladder) {
+        const parsed = JSON.parse(ladder);
+        if (Array.isArray(parsed)) {
+          setCompletedSteps(parsed.filter((n) => typeof n === "number"));
+        }
+      }
+      const sess = localStorage.getItem("yb_sessions");
+      if (sess) {
+        const parsed = JSON.parse(sess);
+        if (Array.isArray(parsed)) setSessions(parsed);
+      }
     } catch {
       // ignore
     }
     setLoaded(true);
   }, []);
+
+  function toggleStep(step: number) {
+    setCompletedSteps((prev) => {
+      const next = prev.includes(step)
+        ? prev.filter((s) => s !== step)
+        : [...prev, step];
+      try {
+        localStorage.setItem("yb_ladder_progress", JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   function handleFeedback(value: "helpful" | "not_helpful") {
     setFeedback(value);
@@ -170,6 +214,13 @@ function ResultsPage() {
   const secondaryState = (analysis.secondary_state || "").toLowerCase();
   const showSecondary =
     !!secondaryState && secondaryState !== "normal" && secondaryState !== stateKey;
+
+  const defaultRecTab =
+    stateKey === "lonely"
+      ? "social"
+      : stateKey === "unmotivated"
+        ? "learning"
+        : "wellbeing";
 
   const recs = analysis.recommendations || {};
   const indicators = analysis.indicators ?? [];
@@ -454,44 +505,68 @@ function ResultsPage() {
           Tailored to your energy, time of day & life in {location} 🇲🇾
         </p>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <RecCard
-            title="Wellbeing"
-            subtitle="Daily calming actions"
-            icon={<Leaf className="h-5 w-5" />}
-            items={recs.wellbeing}
-            accent="from-emerald-400/15 to-teal-400/10"
-            iconClass="bg-emerald-500/15 text-emerald-700"
-            delay={0.1}
-          />
-          <RecCard
-            title="Social"
-            subtitle="Connect with people nearby"
-            icon={<Users className="h-5 w-5" />}
-            items={recs.social}
-            accent="from-sky-400/15 to-blue-400/10"
-            iconClass="bg-sky-500/15 text-sky-700"
-            delay={0.15}
-          />
-          <RecCard
-            title="Learning"
-            subtitle="Build skills, find purpose"
-            icon={<GraduationCap className="h-5 w-5" />}
-            items={recs.learning}
-            accent="from-indigo-400/15 to-violet-400/10"
-            iconClass="bg-indigo-500/15 text-indigo-700"
-            delay={0.2}
-          />
-          <RecCard
-            title="Health"
-            subtitle="Care & professional support"
-            icon={<HeartPulse className="h-5 w-5" />}
-            items={recs.health}
-            accent="from-rose-400/15 to-pink-400/10"
-            iconClass="bg-rose-500/15 text-rose-700"
-            delay={0.25}
-          />
-        </div>
+        <Tabs defaultValue={defaultRecTab} className="mt-5">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="wellbeing">
+              <Leaf className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Wellbeing</span>
+              <span className="sm:hidden">Calm</span>
+            </TabsTrigger>
+            <TabsTrigger value="social">
+              <Users className="mr-1 h-3.5 w-3.5" />
+              Social
+            </TabsTrigger>
+            <TabsTrigger value="learning">
+              <GraduationCap className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Learning</span>
+              <span className="sm:hidden">Learn</span>
+            </TabsTrigger>
+            <TabsTrigger value="health">
+              <HeartPulse className="mr-1 h-3.5 w-3.5" />
+              Health
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="wellbeing" className="mt-4">
+            <RecCard
+              title="Wellbeing"
+              subtitle="Daily calming actions"
+              icon={<Leaf className="h-5 w-5" />}
+              items={recs.wellbeing}
+              accent="from-emerald-400/15 to-teal-400/10"
+              iconClass="bg-emerald-500/15 text-emerald-700"
+            />
+          </TabsContent>
+          <TabsContent value="social" className="mt-4">
+            <RecCard
+              title="Social"
+              subtitle="Connect with people nearby"
+              icon={<Users className="h-5 w-5" />}
+              items={recs.social}
+              accent="from-sky-400/15 to-blue-400/10"
+              iconClass="bg-sky-500/15 text-sky-700"
+            />
+          </TabsContent>
+          <TabsContent value="learning" className="mt-4">
+            <RecCard
+              title="Learning"
+              subtitle="Build skills, find purpose"
+              icon={<GraduationCap className="h-5 w-5" />}
+              items={recs.learning}
+              accent="from-indigo-400/15 to-violet-400/10"
+              iconClass="bg-indigo-500/15 text-indigo-700"
+            />
+          </TabsContent>
+          <TabsContent value="health" className="mt-4">
+            <RecCard
+              title="Health"
+              subtitle="Care & professional support"
+              icon={<HeartPulse className="h-5 w-5" />}
+              items={recs.health}
+              accent="from-rose-400/15 to-pink-400/10"
+              iconClass="bg-rose-500/15 text-rose-700"
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Progressive exposure */}
         {exposure.length > 0 && (
@@ -508,33 +583,126 @@ function ResultsPage() {
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tiny, low-pressure steps. Start with whichever feels safe today.
+              Tiny, low-pressure steps. Tick them off as you go.
             </p>
             <ol className="mt-5 space-y-3">
-              {exposure.map((step, i) => (
-                <li
-                  key={i}
-                  className="relative flex gap-4 rounded-2xl border border-border/40 bg-background/60 p-4"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-calm text-sm font-semibold text-primary-foreground">
-                    {step.step ?? i + 1}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{step.title}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      {step.description}
-                    </p>
-                    {step.location && (
-                      <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        <MapPin className="h-2.5 w-2.5" /> {step.location}
-                      </p>
+              {exposure.map((step, i) => {
+                const stepNum = step.step ?? i + 1;
+                const done = completedSteps.includes(stepNum);
+                return (
+                  <li
+                    key={i}
+                    className={cn(
+                      "relative flex items-start gap-3 rounded-2xl border p-4 transition-colors",
+                      done
+                        ? "border-success/30 bg-success/5"
+                        : "border-border/40 bg-background/60",
                     )}
-                  </div>
-                </li>
-              ))}
+                  >
+                    <Checkbox
+                      id={`step-${stepNum}`}
+                      checked={done}
+                      onCheckedChange={() => toggleStep(stepNum)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full gradient-calm text-xs font-semibold text-primary-foreground">
+                      {stepNum}
+                    </div>
+                    <label
+                      htmlFor={`step-${stepNum}`}
+                      className="min-w-0 flex-1 cursor-pointer"
+                    >
+                      <p
+                        className={cn(
+                          "text-sm font-medium text-foreground transition-all",
+                          done && "line-through text-muted-foreground",
+                        )}
+                      >
+                        {step.title}
+                      </p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                        {step.description}
+                      </p>
+                      {step.location && (
+                        <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          <MapPin className="h-2.5 w-2.5" /> {step.location}
+                        </p>
+                      )}
+                    </label>
+                  </li>
+                );
+              })}
             </ol>
           </motion.section>
         )}
+
+        {/* Session history */}
+        {sessions.length > 1 && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+            className="mt-6 rounded-3xl border border-border/60 bg-card p-6 card-shadow"
+          >
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-2xl text-foreground">
+                Your journey so far
+              </h3>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A short look back at recent check-ins.
+            </p>
+            <div className="chat-scroll mt-4 -mx-2 flex gap-3 overflow-x-auto px-2 pb-2">
+              {sessions.map((s, i) => {
+                const ps = (s.analysis?.primary_state || s.analysis?.state || "normal").toLowerCase();
+                const sv = (s.analysis?.severity || "low").toLowerCase();
+                const emoji = STATE_EMOJI[ps] || "✨";
+                const dt = new Date(s.date);
+                const dateLabel = isNaN(dt.getTime())
+                  ? "—"
+                  : dt.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+                const sevColor =
+                  sv === "high"
+                    ? "bg-destructive/10 text-destructive"
+                    : sv === "medium"
+                      ? "bg-warning/15 text-warning"
+                      : "bg-success/10 text-success";
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "min-w-[140px] shrink-0 rounded-2xl border bg-background/60 p-3",
+                      i === 0 ? "border-primary/40" : "border-border/40",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl" aria-hidden>
+                        {emoji}
+                      </span>
+                      {i === 0 && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
+                          Now
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs font-medium text-foreground">{dateLabel}</p>
+                    <p className="text-[11px] capitalize text-muted-foreground">{ps}</p>
+                    <span
+                      className={cn(
+                        "mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
+                        sevColor,
+                      )}
+                    >
+                      {sv}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.section>
+        )}
+
 
         {/* Feedback loop */}
         <motion.section
