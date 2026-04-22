@@ -58,8 +58,11 @@ type ExposureStep = {
 
 type Analysis = {
   state: "stressed" | "lonely" | "unmotivated" | "normal" | string;
+  primary_state?: string;
+  secondary_state?: string | null;
   severity: LevelKey | string;
   summary?: string;
+  reasoning?: string;
   confidence?: number;
   indicators?: string[];
   causes?: string[];
@@ -160,10 +163,13 @@ function ResultsPage() {
 
   if (!analysis) return null;
 
-  const stateKey = (analysis.state || "normal").toLowerCase();
+  const stateKey = (analysis.primary_state || analysis.state || "normal").toLowerCase();
   const stateCopy = STATE_COPY[stateKey] ?? STATE_COPY.normal;
   const sevKey = (analysis.severity || "low").toLowerCase();
   const sev = SEVERITY_META[sevKey] ?? SEVERITY_META.low;
+  const secondaryState = (analysis.secondary_state || "").toLowerCase();
+  const showSecondary =
+    !!secondaryState && secondaryState !== "normal" && secondaryState !== stateKey;
 
   const recs = analysis.recommendations || {};
   const indicators = analysis.indicators ?? [];
@@ -259,6 +265,16 @@ function ResultsPage() {
                 <p className="mt-2 max-w-md text-sm text-muted-foreground">
                   {analysis.summary || stateCopy.tone}
                 </p>
+                {analysis.reasoning && (
+                  <p className="mt-2 max-w-md border-l-2 border-primary/30 pl-3 text-xs italic text-muted-foreground">
+                    {analysis.reasoning}
+                  </p>
+                )}
+                {showSecondary && (
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium capitalize text-secondary-foreground">
+                    Also showing signs of: {secondaryState}
+                  </span>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
                     <MapPin className="h-3 w-3" /> {location}
