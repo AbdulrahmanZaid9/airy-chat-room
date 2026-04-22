@@ -49,7 +49,7 @@ export function ChatApp() {
   const trimmed = input.trim();
   const canSend = trimmed.length > 0 && !isLoading && !isAnalyzing;
   const userMessageCount = messages.filter((m) => m.role === "user").length;
-  const canAnalyze = userMessageCount >= 2 && !isLoading && !isAnalyzing;
+  const canAnalyze = userMessageCount >= 1 && !isLoading && !isAnalyzing;
 
   async function handleSend(e?: FormEvent) {
     e?.preventDefault();
@@ -201,9 +201,9 @@ export function ChatApp() {
             {(isLoading || isAnalyzing) && <TypingBubble key="typing" />}
           </AnimatePresence>
 
-          {userMessageCount < 2 && (
+          {userMessageCount < 1 && (
             <p className="mx-auto mt-2 max-w-md text-center text-xs text-muted-foreground">
-              Share a bit about how you're feeling. After a short chat, tap{" "}
+              Share a bit about how you're feeling. Then tap{" "}
               <span className="font-medium text-foreground">Finish & Analyze</span> for your
               personalized dashboard.
             </p>
